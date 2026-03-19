@@ -46,7 +46,7 @@ var (
 			Foreground(lipgloss.Color("9"))
 
 	styleStatusInfo = lipgloss.NewStyle().
-				Foreground(lipgloss.Color("12"))
+			Foreground(lipgloss.Color("12"))
 
 	styleKey = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("11")).

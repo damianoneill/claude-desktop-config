@@ -85,8 +85,8 @@ func TestDestPath_WindowsMissingAPPDATA(t *testing.T) {
 	}
 
 	original := os.Getenv("APPDATA")
-	t.Cleanup(func() { os.Setenv("APPDATA", original) })
-	os.Unsetenv("APPDATA")
+	t.Cleanup(func() { require.NoError(t, os.Setenv("APPDATA", original)) })
+	require.NoError(t, os.Unsetenv("APPDATA"))
 
 	_, err := config.DestPath()
 	assert.Error(t, err)

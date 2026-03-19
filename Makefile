@@ -32,6 +32,10 @@ clean: ## remove build artifacts
 install: ## install binary to GOPATH/bin
 	go install $(LDFLAGS) .
 
+.PHONY: setup
+setup: ## install pre-commit hooks
+	pre-commit install
+
 .PHONY: release-dry
 release-dry: ## local goreleaser snapshot (no publish)
 	goreleaser release --snapshot --clean

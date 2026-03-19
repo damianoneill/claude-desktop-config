@@ -20,8 +20,8 @@ func resolveVersion() string {
 }
 
 var versionCmd = &cobra.Command{
-	Use:   "version",
-	Short: "Print the claude-desktop-config version",
+	Use:               "version",
+	Short:             "Print the claude-desktop-config version",
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error { return nil },
 	RunE: func(cmd *cobra.Command, args []string) error {
 		fmt.Println("claude-desktop-config version", resolveVersion())

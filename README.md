@@ -24,13 +24,15 @@ Or download a binary from the [releases page](https://github.com/damianoneill/cl
 # 1. Create source file from the committed example
 claude-desktop-config init
 
-# 2. Edit it — add your real credentials, toggle enabled/disabled as needed
-$EDITOR claude_desktop_config.source.json
+# 2. Launch the interactive TUI — toggle servers, then press 'a' to apply
+claude-desktop-config
+
+# Or use the CLI directly:
 
 # 3. Preview what will be generated (nothing is written)
 claude-desktop-config dry-run
 
-# 4. Apply — writes to Claude Desktop config and backs up the previous one
+# 4. Apply — writes to Claude Desktop config, backs up the previous one
 claude-desktop-config apply
 
 # 5. Restart Claude Desktop
@@ -38,25 +40,64 @@ claude-desktop-config apply
 
 ## Usage
 
-```
-claude-desktop-config [--source PATH] <command>
+Run without arguments to launch the interactive TUI:
+
+```bash
+claude-desktop-config
 ```
 
-| Command              | Description                                                      |
-| -------------------- | ---------------------------------------------------------------- |
-| `init`               | Create source file from `.example` (skips if already exists)    |
-| `apply`              | Generate and write Claude Desktop config from source file        |
-| `dry-run`            | Preview generated config without writing to disk                 |
-| `list`               | List all servers with `[on]`/`[off]` status and URL             |
-| `enable <name>`      | Enable a server by name                                          |
-| `disable <name>`     | Disable a server by name                                         |
-| `version`            | Print version                                                    |
+Or use a subcommand directly:
+
+```
+claude-desktop-config [--source PATH] [--keep-backups N] <command>
+```
+
+| Command   | Description                                                  |
+| --------- | ------------------------------------------------------------ |
+| `tui`     | Launch the interactive TUI (default when no command given)   |
+| `init`    | Create source file from `.example` (skips if already exists) |
+| `apply`   | Generate and write Claude Desktop config from source file    |
+| `dry-run` | Preview generated config without writing to disk             |
+| `version` | Print version                                                |
 
 Global flags:
 
 ```
---source PATH   Path to source JSON file (default: ./claude_desktop_config.source.json)
+--source PATH       Path to source JSON file (default: ./claude_desktop_config.source.json)
+--keep-backups N    Number of backup files to retain (default: 3)
 ```
+
+## Interactive TUI
+
+Running `claude-desktop-config` (or `claude-desktop-config tui`) opens a full-screen terminal UI:
+
+```
+Claude Desktop MCP Servers  3 enabled / 15 total
+
+────────────────────────────────────────────────────────────────────────
+       NAME                                       URL
+  ●  local-server-a                               http://localhost:8080/mcp/server-a
+  ○  local-server-b                               http://localhost:8080/mcp/server-b
+  ○  prod-server-a                                https://api.example.com/mcp/server-a
+  ●~ staging-server-a                             https://staging.example.com/mcp/server-a
+────────────────────────────────────────────────────────────────────────
+↑↓/jk navigate  space toggle  s save  a apply  d dry-run  q quit
+```
+
+| Symbol | Meaning                     |
+| ------ | --------------------------- |
+| `●`    | Enabled                     |
+| `○`    | Disabled                    |
+| `●~`   | Staged to enable (unsaved)  |
+| `○~`   | Staged to disable (unsaved) |
+
+Changes are **staged** until explicitly committed:
+
+- **`space`** — toggle the selected server (staged, not yet written)
+- **`s`** — save staged changes to the source file
+- **`a`** — save staged changes and apply to Claude Desktop config
+- **`d`** — dry-run preview of currently enabled servers (shown in status bar)
+- **`q`** — quit (discards any unsaved staged changes)
 
 ## Source file format
 
@@ -118,16 +159,19 @@ The correct path is auto-detected by OS:
 
 1. Reads the source file
 2. Filters to only `"enabled": true` servers
-3. Strips `"enabled"` and `"_comment"` fields
+3. Strips `"enabled"` and `"_comment"` fields from the output
 4. Backs up the existing Claude Desktop config with a timestamp suffix (`.YYYYMMDD-HHMMSS.bak`)
-5. Merges the new `mcpServers` block into the existing config, preserving any other top-level keys Claude Desktop may have added
-6. Writes the result
+5. Prunes old backups, keeping the most recent N (default 3, configurable via `--keep-backups`)
+6. Merges the new `mcpServers` block into the existing config, preserving any other top-level keys Claude Desktop may have written
+7. Writes the result
 
 ## Development
 
 ```bash
+make setup          # install pre-commit hooks
 make build          # build ./claude-desktop-config binary
 make test           # run all tests
 make lint           # run golangci-lint
+make fmt            # format source code
 make release-dry    # local goreleaser snapshot
 ```

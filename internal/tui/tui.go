@@ -233,7 +233,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.pending[row.name] = newState
 			}
 			m.buildRows()
-			m.showComment()
 
 		case "s": // save pending to source file
 			if m.pendingCount() == 0 {
@@ -462,11 +461,4 @@ func (m Model) View() string {
 	b.WriteString(styleSubtle.Render(strings.Join(hints, "  ")))
 
 	return b.String()
-}
-
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
 }

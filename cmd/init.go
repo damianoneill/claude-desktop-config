@@ -10,9 +10,8 @@ import (
 var initCmd = &cobra.Command{
 	Use:   "init",
 	Short: "Create source file from example (skips if already exists)",
-	// init does not need the source file to exist; skip PersistentPreRunE config loading
-	// We still need AppContext for the output writer, so we call PersistentPreRunE manually
-	// by not overriding it — the source file path resolution is fine even if file doesn't exist.
+	// init does not require the source file to already exist — PersistentPreRunE only
+	// resolves the path, it does not open or validate the file, so this is safe.
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ac := appCtx(cmd)
 		source := ac.SourceFile

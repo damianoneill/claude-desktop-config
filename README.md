@@ -2,7 +2,7 @@
 
 Manage multiple Claude Desktop MCP server configurations with per-server enable/disable flags.
 
-Claude Desktop's `claude_desktop_config.json` is plain JSON — you can't comment things out. This tool lets you maintain a **source file** with as many server entries as you like, each with an `"enabled"` flag, and generates the real config from it.
+Claude Desktop's `claude_desktop_config.json` is plain JSON — you can't comment things out. This tool lets you maintain a **source file** with as many server entries as you like, each with a `"_enabled"` flag, and generates the real config from it.
 
 ## Install
 
@@ -24,18 +24,16 @@ Or download a binary from the [releases page](https://github.com/damianoneill/cl
 # 1. Create source file from the committed example
 claude-desktop-config init
 
-# 2. Launch the interactive TUI — toggle servers, then press 'a' to apply
+# 2. Edit it — add your real credentials and set _enabled flags as needed
+$EDITOR claude_desktop_config.source.json
+
+# 3. Launch the interactive TUI — toggle servers, then press 'a' to apply
 claude-desktop-config
 
-# Or use the CLI directly:
-
-# 3. Preview what will be generated (nothing is written)
-claude-desktop-config dry-run
-
-# 4. Apply — writes to Claude Desktop config, backs up the previous one
+# Or skip the TUI and apply directly:
 claude-desktop-config apply
 
-# 5. Restart Claude Desktop
+# 4. Restart Claude Desktop
 ```
 
 ## Usage

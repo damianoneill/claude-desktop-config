@@ -44,7 +44,9 @@ func run(t *testing.T, bin string, args ...string) (stdout, stderr string, code 
 
 func runWithSource(t *testing.T, bin, source string, args ...string) (stdout, stderr string, code int) {
 	t.Helper()
-	allArgs := append([]string{"--source", source}, args...)
+	allArgs := make([]string, 0, 2+len(args))
+	allArgs = append(allArgs, "--source", source)
+	allArgs = append(allArgs, args...)
 	return run(t, bin, allArgs...)
 }
 

@@ -1,12 +1,8 @@
 package cmd
 
 import (
-	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
 	"sort"
-	"time"
 
 	"github.com/spf13/cobra"
 
@@ -34,29 +30,13 @@ var applyCmd = &cobra.Command{
 			return err
 		}
 
-		destDir := filepath.Dir(destPath)
-		if err := os.MkdirAll(destDir, 0o755); err != nil {
-			return fmt.Errorf("creating config directory: %w", err)
-		}
-
-		// Back up existing config
-		if _, err := os.Stat(destPath); err == nil {
-			timestamp := time.Now().Format("20060102-150405")
-			backup := destPath + "." + timestamp + ".bak"
-			if err := copyFile(destPath, backup); err != nil {
-				return fmt.Errorf("backing up existing config: %w", err)
-			}
-			out.Info("Backed up existing config to: " + backup)
-		}
-
-		// Merge: preserve non-mcpServers keys from existing dest config
-		merged, err := mergeConfig(destPath, dest)
+		merged, err := config.MergeConfig(destPath, dest)
 		if err != nil {
 			return err
 		}
 
-		if err := os.WriteFile(destPath, merged, 0o644); err != nil {
-			return fmt.Errorf("writing config: %w", err)
+		if err := config.WriteConfig(destPath, merged, ac.KeepBackups); err != nil {
+			return err
 		}
 
 		out.Info("")
@@ -83,41 +63,6 @@ var applyCmd = &cobra.Command{
 		out.Info("Restart Claude Desktop to pick up the new configuration.")
 		return nil
 	},
-}
-
-// mergeConfig merges the generated mcpServers into the existing dest config,
-// preserving all other top-level keys. If the dest file doesn't exist or is
-// invalid JSON, returns the generated config as-is.
-func mergeConfig(destPath string, dest *config.DestConfig) ([]byte, error) {
-	existing, err := os.ReadFile(destPath)
-	if err == nil {
-		var raw map[string]json.RawMessage
-		if json.Unmarshal(existing, &raw) == nil {
-			servers, err := json.Marshal(dest.MCPServers)
-			if err != nil {
-				return nil, fmt.Errorf("marshalling servers: %w", err)
-			}
-			raw["mcpServers"] = servers
-			data, err := json.MarshalIndent(raw, "", "  ")
-			if err != nil {
-				return nil, fmt.Errorf("marshalling merged config: %w", err)
-			}
-			return append(data, '\n'), nil
-		}
-	}
-	data, err := json.MarshalIndent(dest, "", "  ")
-	if err != nil {
-		return nil, fmt.Errorf("marshalling config: %w", err)
-	}
-	return append(data, '\n'), nil
-}
-
-func copyFile(src, dst string) error {
-	data, err := os.ReadFile(src)
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(dst, data, 0o644)
 }
 
 func sortedKeys[V any](m map[string]V) []string {

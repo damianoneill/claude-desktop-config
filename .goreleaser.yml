@@ -1,0 +1,48 @@
+version: 2
+
+project_name: claude-desktop-config
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: claude-desktop-config
+    main: .
+    binary: claude-desktop-config
+    ldflags:
+      - -s -w
+      - -X github.com/damianoneill/claude-desktop-config/cmd.version={{.Version}}
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+
+archives:
+  - id: claude-desktop-config
+    builds: [claude-desktop-config]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+
+checksum:
+  name_template: "checksums.txt"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+
+release:
+  github:
+    owner: damianoneill
+    name: claude-desktop-config

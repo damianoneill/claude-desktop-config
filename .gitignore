@@ -1,0 +1,17 @@
+# Source config contains real credentials — never commit it
+# Copy the .example file to get started: claude-desktop-config init
+claude_desktop_config.source.json
+
+# Timestamped backup files created by apply (e.g. claude_desktop_config.json.20250319-143022.bak)
+*.bak
+
+# Build output
+claude-desktop-config
+dist/
+
+# macOS
+.DS_Store
+
+# Editor directories
+.idea
+.vscode

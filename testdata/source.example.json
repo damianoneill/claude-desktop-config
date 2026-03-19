@@ -1,0 +1,62 @@
+{
+  "mcpServers": {
+    "local-server-a": {
+      "_comment": "Local dev instance of server A — enabled for day-to-day testing",
+      "enabled": true,
+      "command": "npx",
+      "args": [
+        "mcp-remote",
+        "http://localhost:8080/mcp/server-a",
+        "--header",
+        "Authorization:Bearer YOUR_API_TOKEN"
+      ],
+      "env": {
+        "NODE_OPTIONS": "--use-system-ca",
+        "NODE_TLS_REJECT_UNAUTHORIZED": "0"
+      }
+    },
+    "local-server-b": {
+      "_comment": "Local dev instance of server B — disabled until needed",
+      "enabled": false,
+      "command": "npx",
+      "args": [
+        "mcp-remote",
+        "http://localhost:8080/mcp/server-b",
+        "--header",
+        "Authorization:Bearer YOUR_API_TOKEN"
+      ],
+      "env": {
+        "NODE_OPTIONS": "--use-system-ca",
+        "NODE_TLS_REJECT_UNAUTHORIZED": "0"
+      }
+    },
+    "staging-server-a": {
+      "_comment": "Staging environment — enable when testing against staging",
+      "enabled": false,
+      "command": "npx",
+      "args": [
+        "mcp-remote",
+        "https://staging.example.com/mcp/server-a",
+        "--header",
+        "Authorization:Bearer YOUR_STAGING_API_TOKEN"
+      ],
+      "env": {
+        "NODE_OPTIONS": "--use-system-ca"
+      }
+    },
+    "prod-server-a": {
+      "_comment": "Production — keep disabled unless explicitly testing prod",
+      "enabled": false,
+      "command": "npx",
+      "args": [
+        "mcp-remote",
+        "https://api.example.com/mcp/server-a",
+        "--header",
+        "Authorization:Bearer YOUR_PROD_API_TOKEN"
+      ],
+      "env": {
+        "NODE_OPTIONS": "--use-system-ca"
+      }
+    }
+  }
+}

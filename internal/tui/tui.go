@@ -117,6 +117,22 @@ func (m *Model) buildRows() {
 		}
 		m.rows = append(m.rows, serverRow{name: name, server: srv, enabled: enabled})
 	}
+	m.showComment()
+}
+
+// showComment sets the status bar to the _comment of the currently selected row,
+// or clears it if the row has no comment.
+func (m *Model) showComment() {
+	if len(m.rows) == 0 {
+		return
+	}
+	comment := m.rows[m.cursor].server.Comment
+	if comment != "" {
+		m.status = comment
+		m.statusErr = false
+	} else {
+		m.status = ""
+	}
 }
 
 // pendingCount returns the number of staged (unsaved) changes.
@@ -194,11 +210,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.cursor > 0 {
 				m.cursor--
 			}
+			m.showComment()
 
 		case "down", "j":
 			if m.cursor < len(m.rows)-1 {
 				m.cursor++
 			}
+			m.showComment()
 
 		case " ": // toggle
 			if len(m.rows) == 0 {
@@ -215,7 +233,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.pending[row.name] = newState
 			}
 			m.buildRows()
-			m.status = ""
+			m.showComment()
 
 		case "s": // save pending to source file
 			if m.pendingCount() == 0 {

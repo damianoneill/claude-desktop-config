@@ -13,8 +13,9 @@ type SourceConfig struct {
 }
 
 // MCPServer is a single server entry in the source file.
+// Fields prefixed with _ are meta-only and are never copied to the output config.
 type MCPServer struct {
-	Enabled *bool             `json:"enabled,omitempty"`
+	Enabled *bool             `json:"_enabled,omitempty"`
 	Comment string            `json:"_comment,omitempty"`
 	Command string            `json:"command"`
 	Args    []string          `json:"args,omitempty"`
@@ -34,7 +35,7 @@ type DestConfig struct {
 }
 
 // IsEnabled reports whether a server should be included in output.
-// A nil enabled pointer (field absent) is treated as enabled.
+// A nil _enabled pointer (field absent) is treated as enabled.
 func IsEnabled(s MCPServer) bool {
 	return s.Enabled == nil || *s.Enabled
 }
@@ -66,7 +67,7 @@ func Save(path string, cfg *SourceConfig) error {
 }
 
 // Filter returns a DestConfig containing only the enabled servers,
-// with the enabled and _comment fields stripped.
+// with all _ prefixed fields (_enabled, _comment) stripped from output.
 func Filter(cfg *SourceConfig) *DestConfig {
 	dest := &DestConfig{
 		MCPServers: make(map[string]CleanServer, len(cfg.MCPServers)),

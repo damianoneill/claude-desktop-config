@@ -2,7 +2,7 @@
   "mcpServers": {
     "local-server-a": {
       "_comment": "Local dev instance of server A — enabled for day-to-day testing",
-      "enabled": true,
+      "_enabled": true,
       "command": "npx",
       "args": [
         "mcp-remote",
@@ -17,7 +17,7 @@
     },
     "local-server-b": {
       "_comment": "Local dev instance of server B — disabled until needed",
-      "enabled": false,
+      "_enabled": false,
       "command": "npx",
       "args": [
         "mcp-remote",
@@ -32,7 +32,7 @@
     },
     "staging-server-a": {
       "_comment": "Staging environment — enable when testing against staging",
-      "enabled": false,
+      "_enabled": false,
       "command": "npx",
       "args": [
         "mcp-remote",
@@ -46,7 +46,7 @@
     },
     "prod-server-a": {
       "_comment": "Production — keep disabled unless explicitly testing prod",
-      "enabled": false,
+      "_enabled": false,
       "command": "npx",
       "args": [
         "mcp-remote",

@@ -104,14 +104,17 @@ Changes are **staged** until explicitly committed:
 `claude_desktop_config.source.json` mirrors the real Claude Desktop config structure,
 with two extra fields per server entry:
 
-- `"enabled"` — `true` to include, `false` to exclude from the generated config
-- `"_comment"` — optional freeform note, stripped from output
+- `"_enabled"` — `true` to include, `false` to exclude from the generated config
+- `"_comment"` — optional freeform description, shown in the TUI and stripped from output
+
+Fields prefixed with `_` are meta-only — they exist only in the source file and are
+never copied to the generated Claude Desktop config.
 
 ```json
 {
   "mcpServers": {
     "local-server-a": {
-      "enabled": true,
+      "_enabled": true,
       "_comment": "Local dev instance — enabled for day-to-day testing",
       "command": "npx",
       "args": [
@@ -126,7 +129,7 @@ with two extra fields per server entry:
       }
     },
     "prod-server-a": {
-      "enabled": false,
+      "_enabled": false,
       "_comment": "Production — keep disabled unless explicitly testing prod",
       "command": "npx",
       "args": [
@@ -143,7 +146,8 @@ with two extra fields per server entry:
 }
 ```
 
-`claude_desktop_config.source.json` is **gitignored** — it should never be committed since it contains real API tokens. The committed `.example` file uses placeholder values and is safe to share.
+`claude_desktop_config.source.json` is **gitignored** — it should never be committed since it
+contains real API tokens. The committed `.example` file uses placeholder values and is safe to share.
 
 ## Config file locations
 
@@ -158,8 +162,8 @@ The correct path is auto-detected by OS:
 ## How apply works
 
 1. Reads the source file
-2. Filters to only `"enabled": true` servers
-3. Strips `"enabled"` and `"_comment"` fields from the output
+2. Filters to only `"_enabled": true` servers (absent `_enabled` is treated as enabled)
+3. Strips all `_` prefixed fields (`_enabled`, `_comment`) from the output
 4. Backs up the existing Claude Desktop config with a timestamp suffix (`.YYYYMMDD-HHMMSS.bak`)
 5. Prunes old backups, keeping the most recent N (default 3, configurable via `--keep-backups`)
 6. Merges the new `mcpServers` block into the existing config, preserving any other top-level keys Claude Desktop may have written

@@ -1,10 +1,14 @@
 package tui
 
 import (
+	"encoding/json"
 	"fmt"
+	"os"
+	"runtime"
 	"sort"
 	"strings"
 
+	osc52 "github.com/aymanbagabas/go-osc52/v2"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
@@ -54,6 +58,9 @@ var (
 
 	styleDivider = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("238"))
+
+	styleCode = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("252")) // light gray — code / JSON body
 )
 
 // ── Model ─────────────────────────────────────────────────────────────────────
@@ -81,7 +88,8 @@ type Model struct {
 	width  int
 	height int
 
-	quitting bool
+	quitting      bool
+	showingConfig bool // modal overlay showing clean config for the cursor server
 }
 
 // New creates a Model loaded from sourceFile.
@@ -164,6 +172,7 @@ type statusMsg struct {
 
 type savedMsg struct{}
 type appliedMsg struct{ destPath string }
+type copiedMsg struct{}
 
 // ── Update ────────────────────────────────────────────────────────────────────
 
@@ -194,7 +203,24 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.status = fmt.Sprintf("✓ Written to %s — restart Claude Desktop", msg.destPath)
 		m.statusErr = false
 
+	case copiedMsg:
+		m.status = "✓ Copied to clipboard"
+		m.statusErr = false
+
 	case tea.KeyMsg:
+		// When the config modal is open, only modal-specific keys are active;
+		// everything else is swallowed so the list cannot be mutated underneath.
+		if m.showingConfig {
+			switch msg.String() {
+			case "esc", "q":
+				m.showingConfig = false
+				m.showComment()
+			case "y":
+				return m, m.cmdCopyConfig()
+			}
+			return m, nil
+		}
+
 		switch msg.String() {
 
 		case "q", "ctrl+c":
@@ -248,8 +274,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "d": // dry-run preview
 			return m, m.cmdDryRun()
 
+		case "enter", "c": // open config modal for the selected server
+			if len(m.rows) > 0 {
+				m.showingConfig = true
+				m.status = ""
+				m.statusErr = false
+			}
+
 		case "?", "h":
-			m.status = "space toggle  s save  a apply  d dry-run  q quit"
+			m.status = "space toggle  s save  a apply  d dry-run  enter config  q quit"
 			m.statusErr = false
 		}
 	}
@@ -322,6 +355,43 @@ func (m *Model) cmdDryRun() tea.Cmd {
 	}
 }
 
+func (m *Model) cmdCopyConfig() tea.Cmd {
+	if len(m.rows) == 0 {
+		return nil
+	}
+	row := m.rows[m.cursor]
+	return func() tea.Msg {
+		text, err := serverCleanJSON(row)
+		if err != nil {
+			return statusMsg{text: "copy failed: " + err.Error(), err: true}
+		}
+		if err := writeToClipboard(text); err != nil {
+			return statusMsg{text: "copy failed: " + err.Error(), err: true}
+		}
+		return copiedMsg{}
+	}
+}
+
+// ── Clipboard ─────────────────────────────────────────────────────────────────
+
+// writeToClipboard sends text to the system clipboard via an OSC 52 escape
+// sequence.  It opens the terminal device directly (/dev/tty on Unix,
+// CONOUT$ on Windows) so the write never passes through Bubble Tea's renderer
+// and cannot corrupt the display.
+func writeToClipboard(text string) error {
+	ttyPath := "/dev/tty"
+	if runtime.GOOS == "windows" {
+		ttyPath = "CONOUT$"
+	}
+	f, err := os.OpenFile(ttyPath, os.O_WRONLY, 0)
+	if err != nil {
+		return fmt.Errorf("cannot open terminal device: %w", err)
+	}
+	defer func() { _ = f.Close() }()
+	_, err = osc52.New(text).WriteTo(f)
+	return err
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 // flushPending writes pending toggles to the source file.
@@ -355,13 +425,44 @@ func sortedServerNames[V any](m map[string]V) []string {
 	return names
 }
 
+// serverCleanJSON returns the Claude Desktop-ready JSON for the given server:
+// all _ prefixed meta-fields (_enabled, _comment) are stripped, and the entry
+// is wrapped in an "mcpServers" object so it can be pasted directly into a
+// claude_desktop_config.json file.
+func serverCleanJSON(row serverRow) (string, error) {
+	type payload struct {
+		MCPServers map[string]config.CleanServer `json:"mcpServers"`
+	}
+	p := payload{
+		MCPServers: map[string]config.CleanServer{
+			row.name: {
+				Command: row.server.Command,
+				Args:    row.server.Args,
+				Env:     row.server.Env,
+			},
+		},
+	}
+	b, err := json.MarshalIndent(p, "", "  ")
+	if err != nil {
+		return "", err
+	}
+	return string(b), nil
+}
+
 // ── View ──────────────────────────────────────────────────────────────────────
 
 func (m Model) View() string {
 	if m.quitting {
 		return ""
 	}
+	if m.showingConfig && len(m.rows) > 0 {
+		return m.viewConfigModal()
+	}
+	return m.viewList()
+}
 
+// viewList renders the normal server list — the original View() implementation.
+func (m Model) viewList() string {
 	var b strings.Builder
 
 	total := len(m.rows)
@@ -456,7 +557,92 @@ func (m Model) View() string {
 		styleKey.Render("s") + styleSubtle.Render(" save"),
 		styleKey.Render("a") + styleSubtle.Render(" apply"),
 		styleKey.Render("d") + styleSubtle.Render(" dry-run"),
+		styleKey.Render("enter") + styleSubtle.Render(" config"),
 		styleKey.Render("q") + styleSubtle.Render(" quit"),
+	}
+	b.WriteString(styleSubtle.Render(strings.Join(hints, "  ")))
+
+	return b.String()
+}
+
+// viewConfigModal renders the config modal overlay for the currently selected
+// server.  The header chrome is preserved so the user keeps context; only the
+// server list body is replaced by the centered modal box.
+func (m Model) viewConfigModal() string {
+	var b strings.Builder
+
+	width := max(m.width, 72)
+	total := len(m.rows)
+	enabled := m.enabledCount()
+	pending := m.pendingCount()
+
+	// ── Header (identical to list view) ───────────────────────────────────────
+	header := styleTitle.Render("Claude Desktop MCP Servers")
+	counts := styleSubtle.Render(fmt.Sprintf("%d enabled / %d total", enabled, total))
+	if pending > 0 {
+		counts += "  " + stylePending.Render(fmt.Sprintf("(%d unsaved)", pending))
+	}
+	b.WriteString(header + "  " + counts + "\n")
+	b.WriteString(styleDivider.Render(strings.Repeat("─", width)) + "\n")
+
+	// ── Modal box ─────────────────────────────────────────────────────────────
+	row := m.rows[m.cursor]
+
+	configJSON, err := serverCleanJSON(row)
+	if err != nil {
+		configJSON = "error rendering config: " + err.Error()
+	}
+
+	// Inner content width: comfortable for JSON, bounded by terminal width.
+	// The rounded border + padding contribute ~6 visible columns on each side.
+	modalInner := min(68, width-8)
+	if modalInner < 20 {
+		modalInner = 20
+	}
+
+	boxContent := styleTitle.Render(row.name) + "\n\n" + styleCode.Render(configJSON)
+
+	modalBox := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("12")).
+		Padding(1, 2).
+		Width(modalInner).
+		Render(boxContent)
+
+	// Centre the box horizontally within the terminal width.
+	modalW := lipgloss.Width(modalBox)
+	leftPad := (width - modalW) / 2
+	if leftPad < 0 {
+		leftPad = 0
+	}
+	pad := strings.Repeat(" ", leftPad)
+
+	b.WriteString("\n")
+	for _, line := range strings.Split(modalBox, "\n") {
+		b.WriteString(pad + line + "\n")
+	}
+	b.WriteString("\n")
+
+	// ── Divider ───────────────────────────────────────────────────────────────
+	b.WriteString(styleDivider.Render(strings.Repeat("─", width)) + "\n")
+
+	// ── Status (copy confirmation / errors) ───────────────────────────────────
+	if m.status != "" {
+		var rendered string
+		if m.statusErr {
+			rendered = styleStatusErr.Render(m.status)
+		} else if strings.HasPrefix(m.status, "✓") {
+			rendered = styleStatusOK.Render(m.status)
+		} else {
+			rendered = styleStatusInfo.Render(m.status)
+		}
+		b.WriteString(rendered + "\n")
+	}
+
+	// ── Key hints ─────────────────────────────────────────────────────────────
+	hints := []string{
+		styleKey.Render("y") + styleSubtle.Render(" copy to clipboard"),
+		styleKey.Render("Esc") + styleSubtle.Render(" close"),
 	}
 	b.WriteString(styleSubtle.Render(strings.Join(hints, "  ")))
 
